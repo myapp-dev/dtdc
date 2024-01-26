@@ -1,0 +1,55 @@
+name: Test Azure Connection
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  test-azure-connection:
+    runs-on: ubuntu-latest
+
+    env:
+      AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+      AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+      AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v2
+
+      - name: Set up Azure PowerShell
+        uses: azure/setup-pwsh@v1
+
+      - name: Update Azure PowerShell Module
+        run: Install-Module -Name Az -Force -AllowClobber -Scope CurrentUser
+
+      - name: Debug Secrets
+        run: |
+          echo "AZURE_CLIENT_ID: $env:AZURE_CLIENT_ID"
+          echo "AZURE_CLIENT_SECRET: $env:AZURE_CLIENT_SECRET"
+          echo "AZURE_TENANT_ID: $env:AZURE_TENANT_ID"
+          echo "AZURE_SUBSCRIPTION_ID: $env:AZURE_SUBSCRIPTION_ID"
+        shell: bash
+
+      - name: Verify Environment
+        run: |
+          Get-ChildItem Env:
+          Get-ExecutionPolicy
+
+      - name: Test Azure Connection
+        run: |
+          $ErrorActionPreference = "Stop"
+
+          # Authenticate with Azure using service principal credentials
+          $secureClientSecret = ConvertTo-SecureString $env:AZURE_CLIENT_SECRET -AsPlainText -Force
+          $azureCredentials = New-Object PSCredential ($env:AZURE_CLIENT_ID, $secureClientSecret)
+
+          Connect-AzAccount -ServicePrincipal -Credential $azureCredentials -TenantId $env:AZURE_TENANT_ID -SubscriptionId $env:AZURE_SUBSCRIPTION_ID -ServicePrincipalTenantId $env:AZURE_TENANT_ID
+
+          # List Azure resource groups (you can replace this with any other Azure cmdlets)
+          Get-AzResourceGroup
+
+          # Disconnect the Azure account
+          Disconnect-AzAccount
